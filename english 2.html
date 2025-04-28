@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Destined Oracle Generator</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'VT323', monospace, 'Source Han Serif SC', 'SimSun', serif;
+      background-color: #0a58ca;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+    h1 { font-size: 24px; margin-bottom: 10px; }
+    p  { font-size: 18px; }
+    input, button {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      padding: 6px 12px;
+      margin: 8px;
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #555;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #e4e4e4; }
+    .oracle {
+      margin-top: 30px;
+      font-size: 16px;
+      line-height: 1.2;
+      white-space: pre-line;
+      text-align: center;
+      width: 400px;
+      padding: 16px;
+      background-color: rgba(255,255,255,0.05);
+      border: 2px solid #fff;
+      box-shadow: 4px 4px 0 #1b2a3d;
+      min-height: 120px;
+      box-sizing: border-box;
+    }
+    .line {
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      height: 1.2em;
+    }
+    .line.visible { opacity: 1; }
+
+    /* 左上角返回按钮样式 */
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: none;
+      border: none;
+      color: #ffffff;
+      font-size: 20px;
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      display: flex;
+      align-items: center;
+    }
+    .back-button:hover {
+      color: #cccccc;
+    }
+    .arrow {
+      font-size: 16px;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 左上角返回按钮 -->
+  <button class="back-button" onclick="goBack()">
+    <span class="arrow">&#x25C0;</span> Back
+  </button>
+
+  <h1>Destined Oracle Generator</h1>
+  <p>Enter your name:</p>
+  <input type="text" id="nameInput" placeholder="Your name">
+  <button onclick="showOracle()">Summon Oracle</button>
+
+  <div class="oracle">
+    <div class="line" id="line1"></div>
+    <div class="line" id="line2"></div>
+    <div class="line" id="line3"></div>
+  </div>
+
+  <script>
+    const words = [
+      "Almond","Wormwood","Iron","Full Moon","Destiny","Fog","Amber","The Deluge",
+      "Milk Tooth","The Sundial","Crystal Fragments","Laurel Branch","The Crows",
+      "Jade Beads","Indigo","Tree Rings","Bets","Trident","White Serpent",
+      "Twelve O’Clock","Borderline","Black Cat","Moths","Goat’s Pupil","Bennu",
+      "White Knight","The Stranger","The Tower of Babel","Troy","Sisyphus"
+    ];
+    const phrases = [
+      "Mourning","Scorch","Behind the Door","To Ferry","After the Rain",
+      "Flags Smashed","Heartbeats","Gold Rush","Bitter","As the Birds Fell Quiet",
+      "Chewing the Night","Collecting Rain Drops","The Lost Crown","What Was Returned",
+      "The Sword in the Stone","The Sleeping Swarm","Tears Condensed into Salt",
+      "Steal His Purse","Kiss Her Fingers","Lost in the Wilderness",
+      "Fire Lit Up the Sky","The Unpromised Return","Everything You’ve Been Through",
+      "The Bitten Apple","A Hundred Poems","New Leaves on the Tree",
+      "What I Lost under the Moonlight","Greed","Wheel Tracks Disappeared in the Moonlight",
+      "Along the Palm Lines"
+    ];
+    const sentences = [
+      "Strive to enter in at the strait gate","Do Not Go to the Attic","Wake Up",
+      "Do Not Forget","Step Over Their Remains","We Will Meet Again",
+      "Will We Meet Again?","Are You Okay?","Do You Miss Me?","Goodbye",
+      "Kill Him","See You Tomorrow","Can You Hear It?","They Are Lying",
+      "Diving into the Sea","Die in a Spring Night","Melted by the Sun",
+      "Without End","Now farewell. Commemorate me, when you return.",
+      "Who Is Whispering?","Look Back","Back to the Beginning",
+      "Go Count Every Desert","I’ll Meet You in the Dream","Whose Eyes Are These",
+      "Close Your Eyes","The Rain Has Stopped","Across the Mountains",
+      "The Lie Ends","Burn until only ashes are left"
+    ];
+
+    const directions = ["Above", "Below", "Between", ""];
+    const directionWeights = [0.2, 0.2, 0.2, 0.4];
+
+    function hashStringToNumber(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash);
+    }
+
+    function pickFromArrayBySeed(arr, seed) {
+      const idx = seed % arr.length;
+      return { value: arr[idx], index: idx };
+    }
+
+    let audioCtx;
+    function unlockAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(audioCtx.destination);
+      src.start(0);
+    }
+
+    function playConcurrent(src) {
+      const audio = new Audio(src);
+      audio.play().catch(err => console.error('Play failed:', err));
+    }
+
+    function generateOracleFromName(name) {
+      const seed = hashStringToNumber(name);
+      const w = pickFromArrayBySeed(words, seed + 1);
+      const p = pickFromArrayBySeed(phrases, seed + 2);
+      const s = pickFromArrayBySeed(sentences, seed + 3);
+
+      const r = (hashStringToNumber(name + '_dir') % 100) / 100;
+      let cumulative = 0, d = "";
+      for (let i = 0; i < directions.length; i++) {
+        cumulative += directionWeights[i];
+        if (r < cumulative) { d = directions[i]; break; }
+      }
+
+      const lineA = d ? `“${d} ${w.value}”` : `“${w.value}”`;
+      const lineB = `“${p.value}”`;
+      const lineC = `“${s.value}”`;
+
+      return [
+        { text: lineA, audio: `word-${w.index}.mp3` },
+        { text: lineB, audio: `phrase-${p.index}.mp3` },
+        { text: lineC, audio: `sentence-${s.index}.mp3` }
+      ];
+    }
+
+    function showOracle() {
+      unlockAudio();
+      const name = document.getElementById('nameInput').value.trim();
+      const l1 = document.getElementById('line1');
+      const l2 = document.getElementById('line2');
+      const l3 = document.getElementById('line3');
+      [l1, l2, l3].forEach(el => el.classList.remove('visible'));
+
+      if (!name) {
+        l1.textContent = 'Please enter a name,';
+        l2.textContent = 'to hear the gods’ voice.';
+        l1.classList.add('visible');
+        l2.classList.add('visible');
+        return;
+      }
+
+      const [o1, o2, o3] = generateOracleFromName(name);
+
+      setTimeout(() => {
+        l1.textContent = o1.text;
+        playConcurrent(o1.audio);
+        l1.classList.add('visible');
+      }, 300);
+
+      setTimeout(() => {
+        l2.textContent = o2.text;
+        playConcurrent(o2.audio);
+        l2.classList.add('visible');
+      }, 5300);
+
+      setTimeout(() => {
+        l3.textContent = o3.text;
+        playConcurrent(o3.audio);
+        l3.classList.add('visible');
+      }, 10300);
+
+      // Auto go back after 30s
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 30000);
+    }
+
+    function goBack() {
+      window.location.href = "index.html";
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>选择语言 Choose Language</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #0a58ca;
+      font-family: 'VT323', monospace, 'Source Han Serif SC', 'SimSun', serif;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      font-size: 32px;
+      text-align: center;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+    .dropdown {
+      position: relative;
+      width: 320px;
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #000000;
+      padding: 12px;
+      font-size: 20px;
+      font-family: 'VT323', monospace;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .arrow {
+      margin-left: 10px;
+    }
+    .options {
+      margin-top: 5px;
+      border: 2px solid #000000;
+      width: 320px;
+      display: none;
+      flex-direction: column;
+      background: #ffffff;
+      color: #000000;
+      font-family: 'VT323', monospace;
+    }
+    .option {
+      padding: 12px;
+      cursor: pointer;
+      border-top: 1px solid #000000;
+    }
+    .option:hover {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>选择语言<br>Choose Language</h1>
+
+  <div class="dropdown" onclick="toggleOptions()">
+    请选择 / Please select <span class="arrow">▼</span>
+  </div>
+  <div class="options" id="options">
+    <!-- 这里改成你实际的中文页面文件名 -->
+    <div class="option" onclick="location.href='chinese.html'">中文</div>
+    <!-- 这里改成你实际的英文页面文件名 -->
+    <div class="option" onclick="location.href='english.html'">English</div>
+  </div>
+
+  <script>
+    function toggleOptions() {
+      var options = document.getElementById('options');
+      options.style.display = options.style.display === 'flex' ? 'none' : 'flex';
+    }
+  </script>
+
+</body>
+</html>

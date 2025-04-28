@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>命定神谕生成器</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'VT323', 'Source Han Serif SC', 'SimSun', monospace;
+      background-color: #0a58ca;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      position: relative;
+    }
+    h1 { font-size: 24px; margin-bottom: 10px; }
+    p  { font-size: 18px; }
+    input, button {
+      font-family: 'VT323', monospace;
+      font-size: 18px;
+      padding: 6px 12px;
+      margin: 8px;
+      background: #ffffff;
+      color: #000000;
+      border: 2px solid #555;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #e4e4e4; }
+    .oracle {
+      margin-top: 30px;
+      font-size: 16px;
+      line-height: 1.2;
+      white-space: pre-line;
+      text-align: center;
+      width: 400px;
+      padding: 16px;
+      background-color: rgba(255,255,255,0.05);
+      border: 2px solid #fff;
+      box-shadow: 4px 4px 0 #1b2a3d;
+      min-height: 120px;
+      box-sizing: border-box;
+    }
+    .line {
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+      height: 1.2em;
+    }
+    .line.visible { opacity: 1; }
+
+    /* 左上角返回按钮样式 */
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: none;
+      border: none;
+      color: #ffffff;
+      font-size: 20px;
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      display: flex; /* ✅加上这个让箭头和字并排！ */
+      align-items: center; /* ✅垂直居中 */
+}
+    .back-button:hover {
+      color: #cccccc;
+}
+    .arrow {
+      font-size: 16px; /* 左三角更小一点 */
+      margin-right: 6px;
+  }
+  </style>
+</head>
+
+<body>
+
+  <!-- 左上角返回按钮 -->
+  <button class="back-button" onclick="goBack()">
+   <span class="arrow">&#x25C0;</span> 返回
+  </button>
+
+  <h1>命定神谕生成器</h1>
+  <p>输入你的名字：</p>
+  <input type="text" id="nameInput" placeholder="你的名字">
+  <button onclick="showOracle()">召唤神谕</button>
+
+  <div class="oracle">
+    <div class="line" id="line1"></div>
+    <div class="line" id="line2"></div>
+    <div class="line" id="line3"></div>
+  </div>
+
+  <script>
+    // —— 数据数组 ——
+    const words = [
+      "杏仁","苦艾","铁","满月","使命","雾","琥珀","洪水","乳牙","日影",
+      "碎水晶","月桂枝","乌鸦","玉珠","靛蓝","年轮","赌注","三叉戟","白蛇","十二点",
+      "国境线","黑猫","飞蛾","山羊瞳孔","太阳神鸟","白色棋子","异乡人","巴别塔","特洛伊","西西弗斯"
+    ];
+    const phrases = [
+      "哀悼","灼烧","门后","摆渡","雨后","粉碎的旗帜","心脏搏动","淘金","苦","百鸟沉寂",
+      "咀嚼黑夜","收集雨水","丢失的王冠","失而复得的","石中剑","沉睡的蜂群","泪水凝结成盐",
+      "偷走他的钱袋","亲吻她的手指","迷路在旷野","火光把天空照亮","未定的归来日","你经历过的一切",
+      "被咬过一口的苹果","一百首诗歌","树的新叶","我在月光里遗失的","贪婪","车辙消失在月色","沿着掌纹"
+    ];
+    const sentences = [
+      "你们要进窄门","不要去阁楼","醒来","不要遗忘","跨过他们的遗骨","我们还会再见",
+      "我们会再见吗","好吗","想我了吗","再见","杀了他","明天见","你听","他们在说谎",
+      "沉入大海","死在春夜","被太阳融化","无休无止","祝福你，我的朋友","谁在呢喃",
+      "回头","回到原点","会在梦中相见","这是谁的眼睛","闭上眼睛","雨停了","穿过山脉",
+      "谎言终结","烧到只剩灰烬"
+    ];
+
+    // 哈希函数
+    function hashStringToNumber(str) {
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash);
+    }
+
+    // 按 seed 取值和索引
+    function pickFromArrayBySeed(arr, seed) {
+      const idx = seed % arr.length;
+      return { value: arr[idx], index: idx };
+    }
+
+    // 自动解锁播放
+    let audioCtx;
+    function unlockAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const buffer = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(audioCtx.destination);
+      src.start(0);
+    }
+
+    // 播放新的音频
+    function playConcurrent(src) {
+      const audio = new Audio(src);
+      audio.play().catch(err => console.error('播放失败:', err));
+    }
+
+    // 生成神谕文本和音频
+    function generateOracleFromName(name) {
+      const seed = hashStringToNumber(name);
+      const w = pickFromArrayBySeed(words, seed + 1);
+      const p = pickFromArrayBySeed(phrases, seed + 2);
+      const s = pickFromArrayBySeed(sentences, seed + 3);
+
+      // 方向词
+      const directions = ["之上", "之下", "之间", ""];
+      const directionWeights = [0.2, 0.2, 0.2, 0.4];
+      const r = (hashStringToNumber(name + '_dir') % 100) / 100;
+      let cumulative = 0, d = "";
+      for (let i = 0; i < directions.length; i++) {
+        cumulative += directionWeights[i];
+        if (r < cumulative) { d = directions[i]; break; }
+      }
+
+      const lineA = d ? `“${w.value}${d}”` : `“${w.value}”`;
+      const lineB = `“${p.value}”`;
+      const lineC = `“${s.value}”`;
+
+      return [
+        { text: lineA, audio: `word-${w.index}.mp3` },
+        { text: lineB, audio: `phrase-${p.index}.mp3` },
+        { text: lineC, audio: `sentence-${s.index}.mp3` }
+      ];
+    }
+
+    // 显示神谕
+    function showOracle() {
+      unlockAudio();
+      const name = document.getElementById('nameInput').value.trim();
+      const l1 = document.getElementById('line1');
+      const l2 = document.getElementById('line2');
+      const l3 = document.getElementById('line3');
+      [l1, l2, l3].forEach(el => el.classList.remove('visible'));
+
+      if (!name) {
+        l1.textContent = '请输入一个名字，';
+        l2.textContent = '才能听见神的回应。';
+        l1.classList.add('visible');
+        l2.classList.add('visible');
+        return;
+      }
+
+      const [o1, o2, o3] = generateOracleFromName(name);
+
+      setTimeout(() => {
+        l1.textContent = o1.text;
+        playConcurrent(o1.audio);
+        l1.classList.add('visible');
+      }, 300);
+
+      setTimeout(() => {
+        l2.textContent = o2.text;
+        playConcurrent(o2.audio);
+        l2.classList.add('visible');
+      }, 5300);
+
+      setTimeout(() => {
+        l3.textContent = o3.text;
+        playConcurrent(o3.audio);
+        l3.classList.add('visible');
+      }, 10300);
+
+      // 30秒后自动返回首页
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 30000);
+    }
+
+    // 点击左上返回按钮
+    function goBack() {
+      window.location.href = "index.html";
+    }
+  </script>
+
+</body>
+</html>
